@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'database_helper.dart';
 import 'history_page.dart';
-import 'histo_page.dart';
+//import 'histo_page.dart';
 import 'package:intl/intl.dart';
 import 'multiplied_page.dart';
 
@@ -875,7 +875,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 20),
         // NEW: Histogram Page button
-        ElevatedButton(
+       /*  ElevatedButton(
           onPressed: () {
             Navigator.push(
               context,
@@ -895,7 +895,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 20), */
 
         // Device list header
         Padding(
