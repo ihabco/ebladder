@@ -1031,7 +1031,7 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
-            ActionChip(
+           /*  ActionChip(
               label: const Text('Multiplied value'),
               avatar: const Icon(Icons.numbers, size: 18),
               onPressed: () {
@@ -1041,7 +1041,7 @@ class _HomePageState extends State<HomePage> {
                 );
                 _loadMultiplier(); // Reload after returning
               },
-            ),
+            ), */
           ],
         ),
         const SizedBox(height: 20),
