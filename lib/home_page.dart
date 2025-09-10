@@ -77,7 +77,7 @@ class _HomePageState extends State<HomePage> {
   // Add this method to load the multiplier
   Future<void> _loadMultiplier() async {
     try {
-      final multiplier = 1;  //await _dbHelper.getVolumeValue();
+      final multiplier = 1; //await _dbHelper.getVolumeValue();
       setState(() => _volumeMultiplier = multiplier);
     } catch (e) {
       debugPrint('Error loading multiplier: $e');
@@ -284,7 +284,20 @@ class _HomePageState extends State<HomePage> {
 
   // Add this helper method to get status and color
   (String, Color) _getStatusForGround(int ground) {
-    if (ground == 0) {
+    if (ground >= 0 && ground <= 18) {
+      return ("Total Blockage", Colors.red);
+    } else if (ground >= 19 && ground <= 72) {
+      return ("Weak Flow", Colors.yellow);
+    } else if (ground >= 73 && ground <= 216) {
+      return ("Normal Flow", Colors.green);
+    } else if (ground >= 217 && ground <= 306) {
+      return ("High Flow", Colors.yellow);
+    } else if (ground >= 307 && ground <= 360) {
+      return ("Extreme Flow / Fault", Colors.red);
+    } else {
+      return ("", Colors.transparent); // For values between 50–59
+    }
+    /* if (ground == 0) {
       return ("Total catheter blockage", Colors.red);
     } else if (ground < 10) {
       return ("Partially Closed", Colors.orange);
@@ -296,7 +309,7 @@ class _HomePageState extends State<HomePage> {
       return ("Draining output full / air lock", Colors.red);
     } else {
       return ("", Colors.transparent); // For values between 50–59
-    }
+    } */
   }
 
   void _onDataReceived(List<int> data) {
@@ -606,7 +619,11 @@ class _HomePageState extends State<HomePage> {
     Color batteryStatusColor = Colors.transparent;
 
     if (battery != null) {
-      if (battery <= 3) {
+      if (battery <= 3.3) {
+        batteryStatusMessage = 'Please Charge your Battery';
+        batteryStatusColor = Colors.red;
+      }
+      /* if (battery <= 3) {
         batteryStatusMessage = 'Less than 50% Battery';
         batteryStatusColor = Colors.deepOrange;
       } else if (battery <= 2.7) {
@@ -615,7 +632,7 @@ class _HomePageState extends State<HomePage> {
       } else if (battery > 2.7) {
         batteryStatusMessage = 'Battery in good condition';
         batteryStatusColor = Colors.green;
-      }
+      } */
     }
 
     // Get ground status

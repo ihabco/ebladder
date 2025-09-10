@@ -102,7 +102,19 @@ class _HistoryPageState extends State<HistoryPage> {
     final dateFormat = DateFormat('dd-MM-yyyy');
 
     PdfColor getStatusColor(int groundValue) {
-      if (groundValue == 0) {
+
+    if (groundValue >= 0 && groundValue <= 18) {
+        return PdfColors.red;
+    } else if (groundValue >= 19 && groundValue <= 72) {
+        return PdfColors.yellow;
+    } else if (groundValue >= 73 && groundValue <= 216) {
+        return PdfColors.green;
+    } else if (groundValue >= 217 && groundValue <= 306) {
+        return PdfColors.yellow;
+    } else if (groundValue >= 307 && groundValue <= 360) {
+        return PdfColors.red;
+    }
+     /*  if (groundValue == 0) {
         return PdfColors.red;
       } else if (groundValue > 0 && groundValue < 10) {
         return PdfColors.orange;
@@ -112,7 +124,7 @@ class _HistoryPageState extends State<HistoryPage> {
         return PdfColors.purple;
       } else if (groundValue >= 50) {
         return PdfColors.red;
-      }
+      } */
       return PdfColors.black;
     }
 
@@ -653,7 +665,18 @@ class _HistoryPageState extends State<HistoryPage> {
             : int.tryParse(record['estimated_volml'].toString()) ?? 0;
 
         Color statusColor = Colors.black;
-        if (groundValue == 0) {
+        if (groundValue >= 0 && groundValue <= 18) {
+              statusColor = Colors.red;
+        } else if (groundValue >= 19 && groundValue <= 72) {
+              statusColor = Colors.yellow;
+        } else if (groundValue >= 73 && groundValue <= 216) {
+              statusColor = Colors.green;
+        } else if (groundValue >= 217 && groundValue <= 306) {
+              statusColor = Colors.yellow;
+        } else if (groundValue >= 307 && groundValue <= 360) {
+              statusColor = Colors.red;
+        }
+       /*  if (groundValue == 0) {
           statusColor = Colors.red;
         } else if (groundValue < 10) {
           statusColor = Colors.orange;
@@ -663,7 +686,7 @@ class _HistoryPageState extends State<HistoryPage> {
           statusColor = Colors.deepPurpleAccent;
         } else if (groundValue >= 60) {
           statusColor = Colors.red;
-        }
+        } */
 
         return ListTile(
           title: Text(
