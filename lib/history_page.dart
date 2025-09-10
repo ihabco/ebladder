@@ -79,8 +79,8 @@ class _HistoryPageState extends State<HistoryPage> {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'Est. Vol/ML Monitoring Report',
-        subject: 'Est. Vol/ML Data Report',
+        text: 'Monitoring Report',
+        subject: 'Monitoring Report',
       );
     } catch (e) {
       if (mounted) {
@@ -123,7 +123,7 @@ class _HistoryPageState extends State<HistoryPage> {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Est. Vol/ML Monitoring Report',
+              'Monitoring Report',
               style: pw.TextStyle(fontSize: 24),
             ),
           ),
@@ -147,7 +147,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(4),
                     child: pw.Text(
-                      'Est. Vol/ML',
+                      'Estimated Hits Sensing',
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                   ),
@@ -283,7 +283,7 @@ class _HistoryPageState extends State<HistoryPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Estimated Vol/ML Distribution (%)',
+              'Estimated Status (%)',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -670,7 +670,7 @@ class _HistoryPageState extends State<HistoryPage> {
             _displayFormat.format(DateTime.parse(record['datetime'])),
           ),
           subtitle: Text(
-            'Battery: ${record['battery']}V | Est. Vol/ML: ${record['estimated_volml']}',
+            'Battery: ${record['battery']}V | Estimated Hits Sensing: ${record['estimated_volml']}',
           ),
           trailing: Text(
             record['status'] ?? 'N/A',

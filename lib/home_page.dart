@@ -545,7 +545,7 @@ class _HomePageState extends State<HomePage> {
                         Row(
                           children: [
                             const Text(
-                              'Est. Vol/ML: ',
+                              'Estimated Hits Sensing: ',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue,
@@ -675,7 +675,7 @@ class _HomePageState extends State<HomePage> {
                         Row(
                           children: [
                             const Text(
-                              'Est. Vol/ML: ',
+                              'Estimated Hits Sensing: ',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue,
