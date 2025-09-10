@@ -5,7 +5,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'database_helper.dart';
 import 'history_page.dart';
 import 'package:intl/intl.dart';
-import 'multiplied_page.dart';
+//import 'multiplied_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
