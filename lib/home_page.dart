@@ -873,29 +873,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 20),
-        // NEW: Histogram Page button
-        /*  ElevatedButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const HistogramPage()),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: const Color(0xFF002DB2), // Hexadecimal color
-          ),
-          child: const Text(
-            'VIEW HISTORY',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(height: 20), */
-
+      
         // Device list header
         Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
@@ -1079,6 +1057,16 @@ class _HomePageState extends State<HomePage> {
 
         // Logs list - Now in chronological order
         Expanded(child: _buildLogListView()),
+
+        /*  SizedBox(height: 20),
+        Expanded(
+          child: ListView.builder(
+            itemCount: logMessages.length,
+            itemBuilder: (context, index) {
+              return Text(logMessages[index]);
+            },
+          ),
+        ),  */
       ],
     );
   }
