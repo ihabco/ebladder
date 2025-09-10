@@ -77,7 +77,7 @@ class _HomePageState extends State<HomePage> {
   // Add this method to load the multiplier
   Future<void> _loadMultiplier() async {
     try {
-      final multiplier = await _dbHelper.getVolumeValue();
+      final multiplier = 1;  //await _dbHelper.getVolumeValue();
       setState(() => _volumeMultiplier = multiplier);
     } catch (e) {
       debugPrint('Error loading multiplier: $e');
@@ -873,7 +873,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 20),
-      
+
         // Device list header
         Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
