@@ -102,19 +102,18 @@ class _HistoryPageState extends State<HistoryPage> {
     final dateFormat = DateFormat('dd-MM-yyyy');
 
     PdfColor getStatusColor(int groundValue) {
-
-    if (groundValue >= 0 && groundValue <= 18) {
+      if (groundValue >= 0 && groundValue <= 18) {
         return PdfColors.red;
-    } else if (groundValue >= 19 && groundValue <= 72) {
+      } else if (groundValue >= 19 && groundValue <= 72) {
         return PdfColors.yellow;
-    } else if (groundValue >= 73 && groundValue <= 216) {
+      } else if (groundValue >= 73 && groundValue <= 216) {
         return PdfColors.green;
-    } else if (groundValue >= 217 && groundValue <= 306) {
+      } else if (groundValue >= 217 && groundValue <= 306) {
         return PdfColors.yellow;
-    } else if (groundValue >= 307 && groundValue <= 360) {
+      } else if (groundValue >= 307 && groundValue <= 360) {
         return PdfColors.red;
-    }
-     /*  if (groundValue == 0) {
+      }
+      /*  if (groundValue == 0) {
         return PdfColors.red;
       } else if (groundValue > 0 && groundValue < 10) {
         return PdfColors.orange;
@@ -159,7 +158,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(4),
                     child: pw.Text(
-                      'Estimated Hits Sensing',
+                      'Hits Sensing',
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                   ),
@@ -237,29 +236,29 @@ class _HistoryPageState extends State<HistoryPage> {
   Widget _buildHistogram() {
     final categories = [
       HistogramCategory(
-        'A: Total Catheter Blockage',
+        'A: Total Blockage',
         Colors.red,
-        (volml) => volml == 0,
+        (volml) => volml >= 0 && volml <= 18,
       ),
       HistogramCategory(
-        'B: Partially Closed',
-        Colors.orange,
-        (volml) => volml > 0 && volml < 10,
+        'B: Weak Flow',
+        Colors.yellow,
+        (volml) => volml >= 19 && volml <= 72,
       ),
       HistogramCategory(
         'C: Normal Flow',
         Colors.green,
-        (volml) => volml >= 10 && volml < 40,
+        (volml) => volml >= 73 && volml <= 216,
       ),
       HistogramCategory(
-        'D: Overflow',
-        Colors.blue,
-        (volml) => volml >= 40 && volml < 50,
+        'D: High Flow',
+        Colors.yellow,
+        (volml) => volml >= 217 && volml <= 306,
       ),
       HistogramCategory(
-        'E: Draining output full / air lock',
-        Colors.purple,
-        (volml) => volml >= 50,
+        'E: Extreme Flow / Fault',
+        Colors.red,
+        (volml) => volml >= 307,
       ),
     ];
 
@@ -666,17 +665,17 @@ class _HistoryPageState extends State<HistoryPage> {
 
         Color statusColor = Colors.black;
         if (groundValue >= 0 && groundValue <= 18) {
-              statusColor = Colors.red;
+          statusColor = Colors.red;
         } else if (groundValue >= 19 && groundValue <= 72) {
-              statusColor = Colors.yellow;
+          statusColor = Colors.yellow;
         } else if (groundValue >= 73 && groundValue <= 216) {
-              statusColor = Colors.green;
+          statusColor = Colors.green;
         } else if (groundValue >= 217 && groundValue <= 306) {
-              statusColor = Colors.yellow;
+          statusColor = Colors.yellow;
         } else if (groundValue >= 307 && groundValue <= 360) {
-              statusColor = Colors.red;
+          statusColor = Colors.red;
         }
-       /*  if (groundValue == 0) {
+        /*  if (groundValue == 0) {
           statusColor = Colors.red;
         } else if (groundValue < 10) {
           statusColor = Colors.orange;
@@ -689,15 +688,34 @@ class _HistoryPageState extends State<HistoryPage> {
         } */
 
         return ListTile(
-          title: Text(
-            _displayFormat.format(DateTime.parse(record['datetime'])),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_displayFormat.format(DateTime.parse(record['datetime']))),
+              SizedBox(height: 4),
+              Text(
+                'Battery: ${record['battery']}V',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+            ],
           ),
-          subtitle: Text(
-            'Battery: ${record['battery']}V | Estimated Hits Sensing: ${record['estimated_volml']}',
-          ),
-          trailing: Text(
-            record['status'] ?? 'N/A',
-            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
+          subtitle: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Hits Sensing: ${record['estimated_volml']}',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+              Text(
+                record['status'] ?? 'N/A',
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
         );
       },

@@ -292,7 +292,7 @@ class _HomePageState extends State<HomePage> {
       return ("Normal Flow", Colors.green);
     } else if (ground >= 217 && ground <= 306) {
       return ("High Flow", Colors.yellow);
-    } else if (ground >= 307 && ground <= 360) {
+    } else if (ground >= 307) {
       return ("Extreme Flow / Fault", Colors.red);
     } else {
       return ("", Colors.transparent); // For values between 50–59
@@ -557,7 +557,7 @@ class _HomePageState extends State<HomePage> {
                         Row(
                           children: [
                             const Text(
-                              'Estimated Hits Sensing: ',
+                              'Hits Sensing: ',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue,
@@ -691,7 +691,7 @@ class _HomePageState extends State<HomePage> {
                         Row(
                           children: [
                             const Text(
-                              'Estimated Hits Sensing: ',
+                              'Hits Sensing: ',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue,
@@ -1031,7 +1031,7 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
-           /*  ActionChip(
+            /*  ActionChip(
               label: const Text('Multiplied value'),
               avatar: const Icon(Icons.numbers, size: 18),
               onPressed: () {
