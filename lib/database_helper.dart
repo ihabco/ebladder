@@ -128,26 +128,27 @@ class DatabaseHelper {
       volml = double.tryParse(value.toString()) ?? 0.0;
     }
 
-    if (volml == 0) {
+    if (volml >= 0 && volml <= 18) {
       totalBlockage++;
-    } else if (volml < 10) {
+    } else if (volml >= 19 && volml <= 72) {
       partiallyClosed++;
-    } else if (volml >= 10 && volml < 40) {
+    } else if (volml >= 73 && volml <= 216) {
       normalFlow++;
-    } else if (volml >= 40 && volml < 50) {
+    } else if (volml >= 217 && volml <= 306) {
       overflow++;
-    } else if (volml >= 50) {
+    } else if (volml >= 307) {
       drainingFull++;
     }
   }
 
   return {
-    'Total catheter blockage': totalBlockage,
-    'Partially Closed': partiallyClosed,
-    'Normal Flow': normalFlow,
-    'Overflow': overflow,
-    'Draining output full / air lock': drainingFull,
+    'Total Blockage (0 - 5)': totalBlockage,
+    'Weak Flow (10 +/- 5)': partiallyClosed,
+    'Normal Flow (30 +/- 5)': normalFlow,
+    'High Flow (40 +/- 5)': overflow,
+    'Flow/Stagnation (0 - 35)': drainingFull,
   };
+
 }
 
 

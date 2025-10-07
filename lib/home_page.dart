@@ -285,15 +285,15 @@ class _HomePageState extends State<HomePage> {
   // Add this helper method to get status and color
   (String, Color) _getStatusForGround(int ground) {
     if (ground >= 0 && ground <= 18) {
-      return ("Total Blockage", Colors.red);
+      return ("Total Blockage (0 - 5)", Colors.red);
     } else if (ground >= 19 && ground <= 72) {
-      return ("Weak Flow", Colors.yellow);
+      return ("Weak Flow (10 +/- 5)", Colors.yellow);
     } else if (ground >= 73 && ground <= 216) {
-      return ("Normal Flow", Colors.green);
+      return ("Normal Flow (30 +/- 5)", Colors.green);
     } else if (ground >= 217 && ground <= 306) {
-      return ("High Flow", Colors.yellow);
+      return ("High Flow (40 +/- 5)", Colors.yellow);
     } else if (ground >= 307) {
-      return ("Extreme Flow / Fault", Colors.red);
+      return ("Flow/Stagnation (0 - 35)", Colors.red);
     } else {
       return ("", Colors.transparent); // For values between 50–59
     }

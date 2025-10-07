@@ -236,27 +236,27 @@ class _HistoryPageState extends State<HistoryPage> {
   Widget _buildHistogram() {
     final categories = [
       HistogramCategory(
-        'A: Total Blockage',
+        'A: Total Blockage (0 - 5)',
         Colors.red,
         (volml) => volml >= 0 && volml <= 18,
       ),
       HistogramCategory(
-        'B: Weak Flow',
+        'B: Weak Flow (10 +/- 5)',
         Colors.yellow,
         (volml) => volml >= 19 && volml <= 72,
       ),
       HistogramCategory(
-        'C: Normal Flow',
+        'C: Normal Flow (30 +/- 5)',
         Colors.green,
         (volml) => volml >= 73 && volml <= 216,
       ),
       HistogramCategory(
-        'D: High Flow',
+        'D: High Flow (40 +/- 5)',
         Colors.yellow,
         (volml) => volml >= 217 && volml <= 306,
       ),
       HistogramCategory(
-        'E: Extreme Flow / Fault',
+        'E: Flow/Stagnation (0 - 35)',
         Colors.red,
         (volml) => volml >= 307,
       ),
