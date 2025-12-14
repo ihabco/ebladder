@@ -6,7 +6,6 @@ import 'dart:async';
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
- 
 
   DatabaseHelper._init();
 
@@ -22,9 +21,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3, // Incremented version
       onCreate: _createDB,
-      onUpgrade: _onUpgrade,  // Now properly referenced
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -39,7 +38,7 @@ class DatabaseHelper {
       )
     ''');
 
-     // Create volume_val table
+    // Create volume_val table
     await db.execute('''
       CREATE TABLE volume_val (
         id INTEGER PRIMARY KEY,
@@ -75,6 +74,9 @@ class DatabaseHelper {
       ''');
       await _ensureVolumeRowExists(db);
     }
+    if (oldVersion < 3) {
+      // You can add future migrations here
+    }
   }
 
   // Retrieves the current volume value
@@ -99,71 +101,101 @@ class DatabaseHelper {
     );
   }
 
-   Future<Map<String, int>> getVolumeStatistics(String fromDate, String toDate) async {
-  final db = await database;
-  
-  // Get all records in date range
-  final records = await db.rawQuery('''
-    SELECT estimated_volml FROM personal_data 
-    WHERE datetime BETWEEN ? AND ?
-  ''', [fromDate, toDate]);
-
-  // Initialize counters
-  int totalBlockage = 0;
-  int partiallyClosed = 0;
-  int normalFlow = 0;
-  int overflow = 0;
-  int drainingFull = 0;
-
-  // Count each category
-  for (var record in records) {
-    final dynamic value = record['estimated_volml'];
-    double volml = 0.0;
-    
-    if (value == null) {
-      volml = 0.0;
-    } else if (value is num) {
-      volml = value.toDouble();
-    } else {
-      volml = double.tryParse(value.toString()) ?? 0.0;
-    }
-
-    if (volml >= 0 && volml <= 18) {
-      totalBlockage++;
-    } else if (volml >= 19 && volml <= 72) {
-      partiallyClosed++;
-    } else if (volml >= 73 && volml <= 216) {
-      normalFlow++;
-    } else if (volml >= 217 && volml <= 306) {
-      overflow++;
-    } else if (volml >= 307) {
-      drainingFull++;
-    }
+  // Check if datetime already exists
+  Future<bool> doesDateTimeExist(String datetime) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'personal_data',
+      where: 'datetime = ?',
+      whereArgs: [datetime],
+    );
+    return result.isNotEmpty;
   }
-
-  return {
-    'Total Blockage (0 - 5)': totalBlockage,
-    'Weak Flow (10 +/- 5)': partiallyClosed,
-    'Normal Flow (30 +/- 5)': normalFlow,
-    'High Flow (40 +/- 5)': overflow,
-    'Flow/Stagnation (0 - 35)': drainingFull,
-  };
-
-}
-
 
   Future<int> insertData(Map<String, dynamic> row) async {
     final db = await instance.database;
-    return await db.insert('personal_data', row);
+    final String datetime = row['datetime']?.toString() ?? '';
+
+    // Check if datetime already exists
+    final bool exists = await doesDateTimeExist(datetime);
+    if (exists) {
+      return 0;
+    } else {
+      return await db.insert('personal_data', row);
+    }
   }
 
-  Future<List<Map<String, dynamic>>> getDataBetweenDates(String from, String to) async {
+  Future<List<Map<String, dynamic>>> getDataBetweenDates(
+    String from,
+    String to,
+  ) async {
     final db = await instance.database;
-    return await db.rawQuery('''
+    return await db.rawQuery(
+      '''
       SELECT * FROM personal_data 
       WHERE datetime BETWEEN ? AND ?
       ORDER BY id DESC
-    ''', [from, to]);
+    ''',
+      [from, to],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> srchDataBetweenDates(
+    String from,
+    String to,
+  ) async {
+    final db = await instance.database;
+    
+    
+    try {
+      final results = await db.rawQuery(
+        '''
+        SELECT * FROM personal_data 
+        WHERE datetime >= ? AND datetime <= ?
+        ORDER BY 
+          substr(datetime, 7, 4) || '-' ||  -- year
+          substr(datetime, 4, 2) || '-' ||  -- month  
+          substr(datetime, 1, 2) || ' ' ||  -- day
+          substr(datetime, 12) DESC         -- time
+        ''',
+        [from, to],
+      );
+
+    
+      return results;
+    } catch (e) {
+     
+      return [];
+    }
+  }
+
+  // Alternative simpler method that might work better
+  Future<List<Map<String, dynamic>>> searchByDateTimeRange(
+    String from,
+    String to,
+  ) async {
+    final db = await instance.database;
+    
+   
+
+    try {
+     
+  
+      final results = await db.rawQuery(
+        '''
+        SELECT * FROM personal_data 
+        WHERE datetime BETWEEN ? AND ?
+        ORDER BY datetime DESC
+        ''',
+        [from, to],
+      );
+
+     
+      return results;
+    } catch (e) {
+    
+      return [];
+    }
   }
 
   // Clear all data from table (keeps table structure)
@@ -176,15 +208,14 @@ class DatabaseHelper {
   Future<void> deleteDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'personal_data.db');
-    
+
     // Close existing connection
     if (_database != null) {
       await _database!.close();
       _database = null;
     }
-    
+
     // Delete file
     await databaseFactory.deleteDatabase(path);
   }
-
 }

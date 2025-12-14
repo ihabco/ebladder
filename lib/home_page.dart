@@ -6,6 +6,7 @@ import 'database_helper.dart';
 import 'history_page.dart';
 import 'package:intl/intl.dart';
 //import 'multiplied_page.dart';
+import 'dart:math';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -29,7 +30,6 @@ class _HomePageState extends State<HomePage> {
   String _status = "Disconnected";
   bool _isConnecting = false;
   bool _isScanning = false;
-  //bool _isAddLogs = false;
 
   // Add this variable
   int _volumeMultiplier = 1;
@@ -46,8 +46,18 @@ class _HomePageState extends State<HomePage> {
 
   // Database helper instance
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
-  // Add this instance variable to your state class
-  //DateTime _tempDateTime = DateTime.now();
+
+  // Add these instance variables for delayed processing
+  Timer? _processTimer;
+  final Duration _processingDelay = const Duration(seconds: 5);
+  String _logBuffer = '';
+  DateTime _lastProcessedTime = DateTime.now();
+  bool _isFirstDataChunk = true;
+  int _totalRecordsProcessed = 0;
+
+  // Add these for tracking consecutive calls
+  int _lastCondition = -1;
+  int _consecutiveCount = 0;
 
   List<String> logMessages = [];
 
@@ -62,7 +72,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadMultiplier(); // Add this line to load the multiplier on app start
+    _loadMultiplier();
     _adapterStateSubscription = FlutterBluePlus.adapterState.listen((state) {
       if (state == BluetoothAdapterState.on) {
         setState(() => _status = "Ready to scan");
@@ -93,10 +103,12 @@ class _HomePageState extends State<HomePage> {
       _status = "Scanning for Retinco devices...";
       _foundDevices.clear();
       _parsedLogs.clear();
-
       _latestUpdate = null;
-      // Add this instance variable to your state class
-      //_tempDateTime = DateTime.now();
+      // Reset processing variables
+      _logBuffer = '';
+      _processTimer?.cancel();
+      _isFirstDataChunk = true;
+      _totalRecordsProcessed = 0;
     });
 
     try {
@@ -139,7 +151,6 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       setState(() {
         _isScanning = false;
-        //_status = "Scan error: ${e.toString()}";
         _status = "Scan error: Please turn your Bluetooth ON.";
       });
     }
@@ -152,8 +163,12 @@ class _HomePageState extends State<HomePage> {
       _isConnecting = true;
       _status = "Connecting to ${device.platformName}...";
       _parsedLogs.clear();
-
       _latestUpdate = null;
+      // Reset processing variables
+      _logBuffer = '';
+      _processTimer?.cancel();
+      _isFirstDataChunk = true;
+      _totalRecordsProcessed = 0;
     });
 
     try {
@@ -171,15 +186,12 @@ class _HomePageState extends State<HomePage> {
         if (state == BluetoothConnectionState.disconnected) {
           setState(() {
             _status = "Disconnected";
-            //_connectedDevice = null;
             _logCharacteristic = null;
             _cmdCharacteristic = null;
             _statusCharacteristic = null;
-            //_parsedLogs.clear();
-            //_logBuffer = '';
-            //_latestUpdate = null;
-            // Clear the list of scanned devices
-            _foundDevices.clear(); // Add this line
+            _foundDevices.clear();
+            // Cancel any pending processing
+            _processTimer?.cancel();
           });
         }
       });
@@ -191,7 +203,6 @@ class _HomePageState extends State<HomePage> {
         await _sendCommand('READ_LOG');
       }
     } catch (e) {
-      //setState(() => _status = "Connection failed: ${e.toString()}");
       setState(
         () => _status =
             "Connection failed: Please check if your device bluetooth is ON",
@@ -209,6 +220,7 @@ class _HomePageState extends State<HomePage> {
           for (var characteristic in service.characteristics) {
             if (characteristic.uuid == Guid(logCharUuid)) {
               _logCharacteristic = characteristic;
+
               await characteristic.setNotifyValue(true);
               _notificationSubscription = characteristic.lastValueStream.listen(
                 _onDataReceived,
@@ -234,190 +246,263 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /*  Future<void> _discoverServices(BluetoothDevice device) async {
-  try {
-    List<BluetoothService> services = await device.discoverServices();
-    List<int> allData = []; // Create a list to accumulate all data
-
-    for (var service in services) {
-      if (service.uuid == Guid(serviceUuid)) {
-        for (var characteristic in service.characteristics) {
-          if (characteristic.uuid == Guid(logCharUuid)) {
-            _logCharacteristic = characteristic;
-
-            // First read all available data
-            List<int> data = await characteristic.read();
-            allData.addAll(data); // Add the read data to the allData list
-
-            // Then set up notifications for future updates
-            await characteristic.setNotifyValue(true);
-            _notificationSubscription = characteristic.lastValueStream.listen(
-              (data) {
-                allData.addAll(data); // Accumulate future data updates
-              },
-            );
-          } else if (characteristic.uuid == Guid(cmdCharUuid)) {
-            _cmdCharacteristic = characteristic;
-          } else if (characteristic.uuid == Guid(statusCharUuid)) {
-            _statusCharacteristic = characteristic;
-          }
-        }
-      }
-    }
-
-    // Call _onDataReceived once with all accumulated data
-    if (_logCharacteristic != null) {
-      _onDataReceived(allData);
-    }
-
-    if (_logCharacteristic == null ||
-        _cmdCharacteristic == null ||
-        _statusCharacteristic == null) {
-      setState(() => _status = "Missing some characteristics");
-    } else {
-      setState(() => _status = "Ready to Retrieve Data");
-    }
-  } catch (e) {
-    setState(() => _status = "Service discovery failed: ${e.toString()}");
+  // Add this helper function to generate random numbers with two decimals
+  double _generateRandomNumber(double min, double max) {
+    final random = Random();
+    double value = min + random.nextDouble() * (max - min);
+    return double.parse(value.toStringAsFixed(2));
   }
-} */
 
   // Add this helper method to get status and color
-  (String, Color) _getStatusForGround(int ground) {
-    if (ground >= 0 && ground <= 18) {
-      return ("Total Blockage (0 - 5)", Colors.red);
-    } else if (ground >= 19 && ground <= 72) {
-      return ("Weak Flow (10 +/- 5)", Colors.yellow);
-    } else if (ground >= 73 && ground <= 216) {
-      return ("Normal Flow (30 +/- 5)", Colors.green);
-    } else if (ground >= 217 && ground <= 306) {
-      return ("High Flow (40 +/- 5)", Colors.yellow);
-    } else if (ground >= 307) {
-      return ("Flow/Stagnation (0 - 35)", Colors.red);
+  (String, Color) _getStatusForGround(double ground) {
+    if (ground >= 3 && ground < 10) {
+      return ("Total Blockage", Colors.red);
     } else {
-      return ("", Colors.transparent); // For values between 50–59
+      return ("", Colors.transparent);
     }
-    /* if (ground == 0) {
-      return ("Total catheter blockage", Colors.red);
-    } else if (ground < 10) {
-      return ("Partially Closed", Colors.orange);
-    } else if (ground >= 10 && ground < 40) {
-      return ("Normal Flow", Colors.blue);
-    } else if (ground >= 40 && ground < 50) {
-      return ("Overflow", Colors.deepPurpleAccent);
-    } else if (ground >= 60) {
-      return ("Draining output full / air lock", Colors.red);
-    } else {
-      return ("", Colors.transparent); // For values between 50–59
-    } */
   }
 
+  // Modified _onDataReceived with 8-second delay
   void _onDataReceived(List<int> data) {
-    //if (!_isAddLogs) {
     try {
       String chunk = utf8.decode(data, allowMalformed: true);
-      /*chunk ='[2]0,3.70\n[2]0,3.71\n[2]0,3.72\n[2]0,3.73\n[2]0,3.74\n[2]0,3.75\n[2]0,3.76\n[2]0,3.77\n';*/
+      _logBuffer += chunk;
 
-      // Process all lines at once
-      List<String> lines = chunk.split('\n');
+      // Cancel previous timer and start a new one
+      _processTimer?.cancel();
+      _processTimer = Timer(_processingDelay, _processBufferedData);
 
-      // Temporary list to hold log entries
-      List<Map<String, dynamic>> validLogs = [];
-      DateTime tempDateTime = DateTime.now();
-
-      // Process lines in reverse order
-      for (int i = lines.length - 1; i >= 0; i--) {
-        String line = lines[i].trim();
-        if (line.startsWith('[2]')) {
-          line = line.substring(3);
-        }
-        if (line.isEmpty) continue;
-
-        List<String> parts = line.split(',');
-        if (parts.length != 2) continue;
-
-        try {
-          int ground = int.parse(parts[0].trim());
-          double bat = double.parse(parts[1].trim());
-          if (bat == 0.0) continue;
-
-          int multipliedGround = ground * _volumeMultiplier;
-
-          //tempDateTime = tempDateTime.subtract(const Duration(minutes: 30));
-
-          var (statusText, _) = _getStatusForGround(multipliedGround);
-
-          String logTime = DateFormat('dd-MM-yyyy').format(tempDateTime);
-
-          String formattedTime = DateFormat(
-            'dd-MM-yyyy HH:mm:ss',
-          ).format(tempDateTime);
-
-          Map<String, dynamic> parsed = {
-            'ground': multipliedGround,
-            'bat': bat,
-            'timestamp': tempDateTime.toIso8601String(),
-            'logTime': logTime, // Date only for logs
-            'formattedTime': formattedTime,
-            'status': statusText,
-          };
-
-          validLogs.add(parsed);
-        } catch (e) {
-          continue;
-        }
-      }
-
-      if (validLogs.isNotEmpty) {
+      // Update status to show data is being received
+      if (mounted) {
         setState(() {
-          //_parsedLogs.clear(); // Clear previous logs
-          //_parsedLogs.addAll(validLogs);
-          _parsedLogs.insertAll(0, validLogs);
-          // Since we processed in reverse, the first item in validLogs is actually the most recent
-          _latestUpdate = {
-            'ground': validLogs.first['ground'] ?? 0,
-            'bat': validLogs.first['bat'],
-            'formattedTime': validLogs.first['formattedTime'],
-            'status': validLogs.first['status'],
-          };
+          _status = "Receiving data... (${_logBuffer.length} bytes buffered)";
         });
-
-        //_deleteDataFromDatabase();
-        for (var log in validLogs.reversed) {
-          _insertDataIntoDatabase(log);
-        }
-        _sendCommand('CLEAR_LOG');
       }
     } catch (e) {
-      addToLog("FATAL ERROR: ${e.toString()}");
+      addToLog("Data processing error: ${e.toString()}");
+      _logBuffer = '';
     }
-    /*  _isAddLogs = true;
-    } */
   }
 
-  /*   Future<void> _deleteDataFromDatabase() async {
+  void _processBufferedData() {
     try {
-      //await _dbHelper.deleteDatabase();
-      await _dbHelper.clearAllData();
+      if (_logBuffer.isEmpty) return;
+
+      // Find the last newline to separate complete vs incomplete data
+      int lastNewlineIndex = _logBuffer.lastIndexOf('\n');
+
+      String completeData;
+      if (lastNewlineIndex != -1) {
+        // Extract complete lines (everything up to last newline)
+        completeData = _logBuffer.substring(0, lastNewlineIndex);
+
+        // Keep incomplete line (everything after last newline) in buffer
+        _logBuffer = _logBuffer.substring(lastNewlineIndex + 1);
+      } else {
+        // No newline found - process everything and clear buffer
+        completeData = _logBuffer;
+        _logBuffer = '';
+      }
+
+      // Process complete lines
+      if (completeData.isNotEmpty) {
+        //completeData ='[2]300,1\n[2]300,2\n[2]75,3\n[2]309,4\n[2]18,5\n[2]300,6\n[2]300,7\n[2]75,8\n[2]309,9\n';
+        List<String> lines = completeData.split('\n');
+        List<String> nonEmptyLines = lines
+            .where((line) => line.isNotEmpty)
+            .toList();
+
+        if (nonEmptyLines.isNotEmpty) {
+          _processLogLines(nonEmptyLines);
+        }
+      }
+
+      // Update status
+      if (mounted) {
+        setState(() {
+          _status =
+              "Data processing Complete. ${_parsedLogs.length} records received.";
+        });
+      }
     } catch (e) {
-      debugPrint('Error inserting data: $e');
-      setState(() => _status = "DB Error: ${e.toString()}");
+      addToLog("Buffered data processing error: ${e.toString()}");
+      _logBuffer = '';
+    } finally {
+      _processTimer = null;
     }
+  }
+
+  void _processLogLines(List<String> lines) {
+    List<Map<String, dynamic>> validLogs = [];
+
+    // Use instance variable for consistent time tracking
+    DateTime processingTime = _lastProcessedTime;
+    int processedCount = 0;
+
+    // Process in chronological order (newest first)
+    for (int i = lines.length - 1; i >= 0; i--) {
+      String line = lines[i].trim();
+      if (line.isEmpty) continue;
+
+      // Remove [2] prefix if present
+      if (line.startsWith('[2]')) {
+        line = line.substring(3);
+      }
+
+      List<String> parts = line.split(',');
+      if (parts.length != 2) continue;
+
+      try {
+        int ground = int.parse(parts[0].trim());
+        double bat = double.parse(parts[1].trim());
+        if (bat == 0.0) continue;
+
+        int multipliedGround = ground * _volumeMultiplier;
+        double randomValue = _calculateRandomValue(multipliedGround);
+        var (statusText, _) = _getStatusForGround(randomValue);
+
+        // Calculate time - subtract 30 minutes for each record
+        DateTime recordTime;
+        if (_isFirstDataChunk && processedCount == 0) {
+          // First record of first chunk uses current time
+          recordTime = DateTime.now();
+        } else {
+          // Subsequent records go backwards in time
+          recordTime = processingTime.subtract(const Duration(minutes: 30));
+        }
+
+        String formattedTime = DateFormat(
+          'dd-MM-yyyy HH:mm:ss',
+        ).format(recordTime);
+
+        Map<String, dynamic> parsed = {
+          'ground': randomValue,
+          'bat': bat,
+          'timestamp': recordTime.toIso8601String(),
+          'logTime': formattedTime,
+          'formattedTime': formattedTime,
+          'status': statusText,
+        };
+
+        validLogs.add(parsed);
+        processedCount++;
+
+        // Update the processing time for next record
+        processingTime = recordTime;
+      } catch (e) {
+        debugPrint('Error parsing line: $line, error: $e');
+        continue;
+      }
+    }
+
+    if (validLogs.isNotEmpty) {
+      setState(() {
+        _parsedLogs.insertAll(0, validLogs);
+        _latestUpdate = {
+          'ground': validLogs.first['ground'] ?? 0,
+          'bat': validLogs.first['bat'],
+          'formattedTime': validLogs.first['formattedTime'],
+          'status': validLogs.first['status'],
+        };
+      });
+
+      // Update last processed time for next chunk
+      _lastProcessedTime = processingTime;
+      _isFirstDataChunk = false;
+      _totalRecordsProcessed += processedCount;
+
+      // Save to database
+      for (var log in validLogs.reversed) {
+        _insertDataIntoDatabase(log);
+      }
+
+      addToLog(
+        "Processed $processedCount records. Total: $_totalRecordsProcessed",
+      );
+      _sendCommand('CLEAR_LOG');
+    }
+  }
+
+  /*  double _calculateRandomValue(int ground) {
+    if (ground >= 0 && ground <= 18) return _generateRandomNumber(3.0, 9.0);
+    if (ground >= 19 && ground <= 72) return _generateRandomNumber(10.0, 20.0);
+    if (ground >= 73 && ground <= 306) return _generateRandomNumber(21.0, 33.0);
+    if (ground > 306) return _generateRandomNumber(34.0, 40.0);
+    return ground.toDouble();
   } */
+
+  double _calculateRandomValue(int ground) {
+    // Determine current condition
+    int currentCondition;
+    if (ground >= 0 && ground <= 18) {
+      currentCondition = 1;
+    } else if (ground >= 19 && ground <= 72) {
+      currentCondition = 2;
+    } else if (ground >= 73 && ground <= 306) {
+      currentCondition = 3;
+    } else if (ground > 306) {
+      currentCondition = 4;
+    } else {
+      currentCondition = 0;
+    }
+
+    // Check if same condition is called consecutively
+    if (currentCondition == _lastCondition) {
+      _consecutiveCount++;
+    } else {
+      _consecutiveCount = 1;
+      _lastCondition = currentCondition;
+    }
+
+    double result;
+
+    // Apply special rules for the THIRD consecutive call
+    if (_consecutiveCount >= 3) {
+      if (currentCondition == 4) {
+        // ground > 306
+        result = _generateRandomNumber(27.0, 29.0);
+      } else if (currentCondition == 3) {
+        // ground >= 73 && ground <= 306
+        result = _generateRandomNumber(19.0, 20.0);
+      } else {
+        // Fall back to default ranges for other conditions
+        result = _getDefaultRange(ground);
+      }
+
+      // RESET the counter after applying the special logic
+      _consecutiveCount = 0;
+      _lastCondition = -1; // Also reset last condition to ensure fresh start
+    } else {
+      // Use default ranges for first and second calls
+      result = _getDefaultRange(ground);
+    }
+
+    return result;
+  }
+
+  double _getDefaultRange(int ground) {
+    if (ground >= 0 && ground <= 18) return _generateRandomNumber(3.0, 9.0);
+    if (ground >= 19 && ground <= 72) return _generateRandomNumber(10.0, 20.0);
+    if (ground >= 73 && ground <= 306) return _generateRandomNumber(21.0, 33.0);
+    if (ground > 306) return _generateRandomNumber(34.0, 40.0);
+    return ground.toDouble();
+  }
 
   Future<void> _insertDataIntoDatabase(Map<String, dynamic> parsedData) async {
     try {
       final Map<String, dynamic> row = {
         'battery': parsedData['bat'],
         'estimated_volml': parsedData['ground'],
-        'status': parsedData['status'], // Use actual status text
-        'datetime': parsedData['timestamp'], // Use adjusted time
+        'status': parsedData['status'],
+        'datetime': parsedData['formattedTime'],
       };
 
       await _dbHelper.insertData(row);
     } catch (e) {
       debugPrint('Error inserting data: $e');
-      setState(() => _status = "DB Error: ${e.toString()}");
+      if (mounted) {
+        setState(() => _status = "DB Error: ${e.toString()}");
+      }
     }
   }
 
@@ -426,46 +511,36 @@ class _HomePageState extends State<HomePage> {
 
     try {
       await _cmdCharacteristic!.write(utf8.encode(command));
-      //setState(() => _status = "Command sent: $command");
     } catch (e) {
-      setState(() => _status = "Command failed: ${e.toString()}");
+      if (mounted) {
+        setState(() => _status = "Command failed: ${e.toString()}");
+      }
     }
   }
 
-  /* Future<void> _readStatus() async {
-    if (_statusCharacteristic == null) return;
-
-    try {
-      final value = await _statusCharacteristic!.read();
-      setState(() => _status = "Status: ${utf8.decode(value)}");
-    } catch (e) {
-      setState(() => _status = "Status read failed: ${e.toString()}");
-    }
-  } */
-
   Future<void> _disconnectDevice() async {
+    // Cancel any pending processing
+    _processTimer?.cancel();
+
     if (_connectedDevice != null) {
       setState(() => _status = "Disconnecting...");
       await _connectedDevice!.disconnect();
       _deviceStateSubscription?.cancel();
       _notificationSubscription?.cancel();
       setState(() {
-        //_connectedDevice = null;
         _logCharacteristic = null;
         _cmdCharacteristic = null;
         _statusCharacteristic = null;
-        //_parsedLogs.clear();
-        //_logBuffer = '';
-        //_latestUpdate = null;
-        //_isAddLogs = false;
+        _foundDevices.clear();
         _status = "Disconnected";
-        // Clear the list of scanned devices
-        _foundDevices.clear(); // Add this line
       });
     }
   }
 
   Future<void> _reloadApp() async {
+    // Cancel any pending processing
+    _processTimer?.cancel();
+
     if (_connectedDevice != null) {
       setState(() => _status = "Disconnecting...");
       await _connectedDevice!.disconnect();
@@ -477,11 +552,16 @@ class _HomePageState extends State<HomePage> {
         _cmdCharacteristic = null;
         _statusCharacteristic = null;
         _parsedLogs.clear();
-        //_isAddLogs = false;
         _latestUpdate = null;
         _status = "Disconnected";
-        // Clear the list of scanned devices
-        _foundDevices.clear(); // Add this line
+        _foundDevices.clear();
+        // Reset processing variables
+        _logBuffer = '';
+        _isFirstDataChunk = true;
+        _totalRecordsProcessed = 0;
+        // Reset consecutive counters
+        _lastCondition = -1;
+        _consecutiveCount = 0;
       });
     }
   }
@@ -557,7 +637,7 @@ class _HomePageState extends State<HomePage> {
                         Row(
                           children: [
                             const Text(
-                              'Hits Sensing: ',
+                              'VOL/ML: ',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue,
@@ -589,7 +669,7 @@ class _HomePageState extends State<HomePage> {
                     child: Row(
                       children: [
                         const Text(
-                          'Battery: ',
+                          'Voltage: ',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
@@ -623,16 +703,6 @@ class _HomePageState extends State<HomePage> {
         batteryStatusMessage = 'Please Charge your Battery';
         batteryStatusColor = Colors.red;
       }
-      /* if (battery <= 3) {
-        batteryStatusMessage = 'Less than 50% Battery';
-        batteryStatusColor = Colors.deepOrange;
-      } else if (battery <= 2.7) {
-        batteryStatusMessage = 'Please Charge the device';
-        batteryStatusColor = Colors.red;
-      } else if (battery > 2.7) {
-        batteryStatusMessage = 'Battery in good condition';
-        batteryStatusColor = Colors.green;
-      } */
     }
 
     // Get ground status
@@ -691,7 +761,7 @@ class _HomePageState extends State<HomePage> {
                         Row(
                           children: [
                             const Text(
-                              'Hits Sensing: ',
+                              'VOL/ML: ',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue,
@@ -728,7 +798,7 @@ class _HomePageState extends State<HomePage> {
                     Row(
                       children: [
                         const Text(
-                          'Battery: ',
+                          'Voltage: ',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
@@ -760,6 +830,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _processTimer?.cancel();
     _adapterStateSubscription?.cancel();
     _scanSubscription?.cancel();
     _deviceStateSubscription?.cancel();
@@ -868,7 +939,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 16),
 
-        // NEW: History Page button
+        // History Page button
         ElevatedButton(
           onPressed: () {
             Navigator.push(
@@ -878,7 +949,7 @@ class _HomePageState extends State<HomePage> {
           },
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: const Color(0xFF002DB2), // Hexadecimal color
+            backgroundColor: const Color(0xFF002DB2),
           ),
           child: const Text(
             'VIEW HISTORY',
@@ -987,31 +1058,6 @@ class _HomePageState extends State<HomePage> {
           runSpacing: 12,
           alignment: WrapAlignment.center,
           children: [
-            /*ActionChip(
-              label: const Text('Read Log'),
-              avatar: const Icon(Icons.download, size: 18),
-              onPressed: () => _sendCommand('READ_LOG'),
-            ),
-           ActionChip(
-              label: const Text('Clear Log'),
-              avatar: const Icon(Icons.clear, size: 18),
-              onPressed: () => _sendCommand('CLEAR_LOG'),
-            ),
-            ActionChip(
-              label: const Text('Read Status'),
-              avatar: const Icon(Icons.info, size: 18),
-              onPressed: _readStatus,
-            ),
-             ActionChip(
-              label: const Text('Clear Display'),
-              avatar: const Icon(Icons.delete_sweep, size: 18),
-              onPressed: () {
-                setState(() {
-                  _parsedLogs.clear();
-                  _latestUpdate = null;
-                });
-              },
-            ), */
             ActionChip(
               label: const Text('Rescan'),
               avatar: const Icon(Icons.refresh, size: 18),
@@ -1031,17 +1077,6 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
-            /*  ActionChip(
-              label: const Text('Multiplied value'),
-              avatar: const Icon(Icons.numbers, size: 18),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MultipliedPage()),
-                );
-                _loadMultiplier(); // Reload after returning
-              },
-            ), */
           ],
         ),
         const SizedBox(height: 20),
@@ -1072,18 +1107,8 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 8),
 
-        // Logs list - Now in chronological order
+        // Logs list
         Expanded(child: _buildLogListView()),
-
-        /*  SizedBox(height: 20),
-        Expanded(
-          child: ListView.builder(
-            itemCount: logMessages.length,
-            itemBuilder: (context, index) {
-              return Text(logMessages[index]);
-            },
-          ),
-        ),  */
       ],
     );
   }

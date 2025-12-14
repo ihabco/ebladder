@@ -21,7 +21,7 @@ class _HistoryPageState extends State<HistoryPage> {
   late DateTime _toDate;
   bool _isLoading = false;
   List<Map<String, dynamic>> _records = [];
-  final DateFormat _displayFormat = DateFormat('dd-MM-yyyy');
+  final DateFormat _displayFormat = DateFormat('dd-MM-yyyy HH:mm');
   final Color customBlue = const Color(0xFF002DB2);
 
   @override
@@ -31,30 +31,79 @@ class _HistoryPageState extends State<HistoryPage> {
     _toDate = DateTime.now();
   }
 
-  Future<void> _searchRecords() async {
+Future<void> _searchRecords() async {
+  if (!mounted) return;
+  setState(() => _isLoading = true);
+
+  try {
+    final DateFormat dbDateFormat = DateFormat('dd-MM-yyyy HH:mm:ss');
+    
+    DateTime fromDateTime = _fromDate;
+    DateTime toDateTime = DateTime(
+      _toDate.year,
+      _toDate.month,
+      _toDate.day,
+      _toDate.hour,
+      _toDate.minute,
+      59,
+    );
+
+    // Get all records and filter manually
+    final db = await DatabaseHelper.instance.database;
+    final allRecords = await db.query(
+      'personal_data',
+      orderBy: 'datetime DESC',
+    );
+
+    final filteredRecords = allRecords.where((record) {
+      try {
+        final recordDateStr = record['datetime']?.toString() ?? '';
+        if (recordDateStr.isEmpty) return false;
+        
+        // Parse the stored datetime string
+        final recordDateTime = dbDateFormat.parse(recordDateStr);
+        
+        // Check if record is within the selected range
+        return (recordDateTime.isAfter(fromDateTime) || 
+                recordDateTime.isAtSameMomentAs(fromDateTime)) &&
+               (recordDateTime.isBefore(toDateTime) || 
+                recordDateTime.isAtSameMomentAs(toDateTime));
+      } catch (e) {
+        debugPrint('Error parsing record date: $e');
+        return false;
+      }
+    }).toList();
+
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    setState(() => _records = filteredRecords);
 
-    try {
-      final records = await DatabaseHelper.instance.getDataBetweenDates(
-        _fromDate.toIso8601String(),
-        _toDate.toIso8601String(),
+    if (filteredRecords.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No records found in selected date range'),
+        ),
       );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Found ${filteredRecords.length} records'),
+        ),
+      );
+    }
 
-      if (!mounted) return;
-      setState(() => _records = records);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+      debugPrint('Search error: $e');
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   Future<void> _shareViaWhatsApp() async {
     if (!mounted) return;
@@ -99,32 +148,48 @@ class _HistoryPageState extends State<HistoryPage> {
     List<Map<String, dynamic>> records,
   ) async {
     final pdf = pw.Document();
-    final dateFormat = DateFormat('dd-MM-yyyy');
+    final dateFormat = DateFormat('dd-MM-yyyy HH:mm:ss');
 
     PdfColor getStatusColor(int groundValue) {
-      if (groundValue >= 0 && groundValue <= 18) {
+      if (groundValue >= 3 && groundValue <= 9) {
         return PdfColors.red;
-      } else if (groundValue >= 19 && groundValue <= 72) {
+      } else if (groundValue >= 10 && groundValue <= 20) {
         return PdfColors.yellow;
-      } else if (groundValue >= 73 && groundValue <= 216) {
+      } else if (groundValue >= 21 && groundValue <= 33) {
         return PdfColors.green;
-      } else if (groundValue >= 217 && groundValue <= 306) {
-        return PdfColors.yellow;
-      } else if (groundValue >= 307 && groundValue <= 360) {
-        return PdfColors.red;
-      }
-      /*  if (groundValue == 0) {
-        return PdfColors.red;
-      } else if (groundValue > 0 && groundValue < 10) {
-        return PdfColors.orange;
-      } else if (groundValue >= 10 && groundValue < 40) {
+      } else if  (groundValue >= 34 && groundValue <= 40) {
         return PdfColors.blue;
-      } else if (groundValue >= 40 && groundValue < 50) {
-        return PdfColors.purple;
-      } else if (groundValue >= 50) {
-        return PdfColors.red;
-      } */
+      }
       return PdfColors.black;
+    }
+
+    // Helper function to safely parse the custom date format
+    String safeFormatDate(String dateString, DateFormat format) {
+      try {
+        // Parse the custom format manually
+        final parts = dateString.split(' ');
+        if (parts.length == 2) {
+          final dateParts = parts[0].split('-');
+          final timeParts = parts[1].split(':');
+
+          if (dateParts.length == 3 && timeParts.length == 3) {
+            final day = int.parse(dateParts[0]);
+            final month = int.parse(dateParts[1]);
+            final year = int.parse(dateParts[2]);
+            final hour = int.parse(timeParts[0]);
+            final minute = int.parse(timeParts[1]);
+            final second = int.parse(timeParts[2]);
+
+            final dateTime = DateTime(year, month, day, hour, minute, second);
+            return format.format(dateTime);
+          }
+        }
+        // If parsing fails, return the original string
+        return dateString;
+      } catch (e) {
+        // If any error occurs, return the original string
+        return dateString;
+      }
     }
 
     pdf.addPage(
@@ -151,14 +216,14 @@ class _HistoryPageState extends State<HistoryPage> {
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(4),
                     child: pw.Text(
-                      'Date',
+                      'DateTime',
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(4),
                     child: pw.Text(
-                      'Hits Sensing',
+                      'VOL/ML +/- 5',
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                   ),
@@ -177,7 +242,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(4),
                       child: pw.Text(
-                        dateFormat.format(DateTime.parse(record['datetime'])),
+                        safeFormatDate(record['datetime'], dateFormat),
                       ),
                     ),
                     pw.Padding(
@@ -211,56 +276,90 @@ class _HistoryPageState extends State<HistoryPage> {
     return pdf.save();
   }
 
-  Future<void> _selectDateTime(bool isFromDate) async {
-    final date = await showDatePicker(
+  Future<void> _selectFromDateTime() async {
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: isFromDate ? _fromDate : _toDate,
+      initialDate: _fromDate,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
 
-    if (date == null || !mounted) return;
+    if (pickedDate == null || !mounted) return;
+
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_fromDate),
+    );
+
+    if (pickedTime == null || !mounted) return;
 
     if (mounted) {
       setState(() {
-        if (isFromDate) {
-          _fromDate = DateTime(date.year, date.month, date.day);
-        } else {
-          _toDate = DateTime(date.year, date.month, date.day, 23, 59, 59);
-        }
+        _fromDate = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
       });
     }
   }
 
+Future<void> _selectToDateTime() async {
+  final DateTime? pickedDate = await showDatePicker(
+    context: context,
+    initialDate: _toDate,
+    firstDate: DateTime(2000),
+    lastDate: DateTime.now(),
+  );
+
+  if (pickedDate == null || !mounted) return;
+
+  final TimeOfDay? pickedTime = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(_toDate),
+  );
+
+  if (pickedTime == null || !mounted) return;
+
+  if (mounted) {
+    setState(() {
+      _toDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+        59, // Include seconds to capture the full minute
+      );
+    });
+  }
+}
   // 2. Then in your _HistoryPageState class, include this method:
   Widget _buildHistogram() {
-    final categories = [
-      HistogramCategory(
-        'A: Total Blockage (0 - 5)',
-        Colors.red,
-        (volml) => volml >= 0 && volml <= 18,
-      ),
-      HistogramCategory(
-        'B: Weak Flow (10 +/- 5)',
-        Colors.yellow,
-        (volml) => volml >= 19 && volml <= 72,
-      ),
-      HistogramCategory(
-        'C: Normal Flow (30 +/- 5)',
-        Colors.green,
-        (volml) => volml >= 73 && volml <= 216,
-      ),
-      HistogramCategory(
-        'D: High Flow (40 +/- 5)',
-        Colors.yellow,
-        (volml) => volml >= 217 && volml <= 306,
-      ),
-      HistogramCategory(
-        'E: Flow/Stagnation (0 - 35)',
-        Colors.red,
-        (volml) => volml >= 307,
-      ),
-    ];
+  final categories = [
+    HistogramCategory(
+      'A: volml >= 3 && volml < 10',
+      Colors.red,
+      (volml) => volml >= 3 && volml < 10,
+    ),
+    HistogramCategory(
+      'B: volml >= 10 && volml < 21',
+      Colors.yellow,
+      (volml) => volml >= 10 && volml < 21,
+    ),
+    HistogramCategory(
+      'C: volml >= 21 && volml < 34',
+      Colors.green,
+      (volml) => volml >= 21 && volml < 34,
+    ),
+    HistogramCategory(
+      'D: volml >= 34 && volml <= 40',
+      Colors.blue,
+      (volml) => volml >= 34 && volml <= 40,
+    ),
+  ];
 
     final totalRecords = _records.length;
     final histogramData = categories.map((category) {
@@ -463,17 +562,17 @@ class _HistoryPageState extends State<HistoryPage> {
         child: Column(
           children: [
             const Text(
-              'Select Date Range',
+              'Select Date & Time Range',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('From Date'),
+                const Text('From Date & Time'),
                 const SizedBox(height: 8),
                 InkWell(
-                  onTap: () => _selectDateTime(true),
+                  onTap: _selectFromDateTime,
                   child: InputDecorator(
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
@@ -508,10 +607,10 @@ class _HistoryPageState extends State<HistoryPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('To Date'),
+                const Text('To Date & Time'),
                 const SizedBox(height: 8),
                 InkWell(
-                  onTap: () => _selectDateTime(false),
+                  onTap: _selectToDateTime,
                   child: InputDecorator(
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
@@ -664,37 +763,35 @@ class _HistoryPageState extends State<HistoryPage> {
             : int.tryParse(record['estimated_volml'].toString()) ?? 0;
 
         Color statusColor = Colors.black;
-        if (groundValue >= 0 && groundValue <= 18) {
+        if (groundValue >= 3 && groundValue <= 9) {
           statusColor = Colors.red;
-        } else if (groundValue >= 19 && groundValue <= 72) {
+        } else if (groundValue >= 10 && groundValue <= 20) {
           statusColor = Colors.yellow;
-        } else if (groundValue >= 73 && groundValue <= 216) {
+        } else if (groundValue >= 21 && groundValue <= 33) {
           statusColor = Colors.green;
-        } else if (groundValue >= 217 && groundValue <= 306) {
-          statusColor = Colors.yellow;
-        } else if (groundValue >= 307 && groundValue <= 360) {
-          statusColor = Colors.red;
-        }
-        /*  if (groundValue == 0) {
-          statusColor = Colors.red;
-        } else if (groundValue < 10) {
-          statusColor = Colors.orange;
-        } else if (groundValue >= 10 && groundValue < 40) {
+        } else if (groundValue >= 34 && groundValue <= 40) {
           statusColor = Colors.blue;
-        } else if (groundValue >= 40 && groundValue < 50) {
-          statusColor = Colors.deepPurpleAccent;
-        } else if (groundValue >= 60) {
-          statusColor = Colors.red;
-        } */
+        }
+
+        // Safe datetime display - use the stored datetime directly
+        String displayText;
+        try {
+          // Try to parse and format nicely, but fall back to original if it fails
+          DateTime parsedDate = DateTime.parse(record['datetime']);
+          displayText = DateFormat('dd-MM-yyyy HH:mm:ss').format(parsedDate);
+        } catch (e) {
+          // Use the original string if parsing fails
+          displayText = record['datetime']?.toString() ?? 'Invalid Date';
+        }
 
         return ListTile(
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_displayFormat.format(DateTime.parse(record['datetime']))),
+              Text(displayText), // Use the displayText variable
               SizedBox(height: 4),
               Text(
-                'Battery: ${record['battery']}V',
+                'Voltage: ${record['battery']}V',
                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
             ],
@@ -703,7 +800,7 @@ class _HistoryPageState extends State<HistoryPage> {
             children: [
               Expanded(
                 child: Text(
-                  'Hits Sensing: ${record['estimated_volml']}',
+                  'VOL/ML: ${record['estimated_volml']}',
                   style: TextStyle(fontSize: 14),
                 ),
               ),
