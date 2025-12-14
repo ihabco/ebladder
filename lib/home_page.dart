@@ -100,7 +100,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _isScanning = true;
       _isConnecting = false;
-      _status = "Scanning for Retinco devices...";
+      _status = "Scanning for Ebladder devices...";
       _foundDevices.clear();
       _parsedLogs.clear();
       _latestUpdate = null;
@@ -119,8 +119,8 @@ class _HomePageState extends State<HomePage> {
 
       _scanSubscription = FlutterBluePlus.scanResults.listen((results) async {
         for (final result in results) {
-          // Only consider devices with the expected Retinco name
-          if (result.device.platformName == 'RETINCO_DEVICE') {
+          // Only consider devices with the expected Ebladder name
+          if (result.device.platformName == 'EBLADDER_DEVICE') {
             if (!_foundDevices.any(
               (r) => r.device.remoteId == result.device.remoteId,
             )) {
@@ -143,9 +143,9 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _isScanning = false;
         if (_foundDevices.isEmpty) {
-          _status = "No Retinco devices found";
+          _status = "No Ebladder devices found";
         } else {
-          _status = "Found ${_foundDevices.length} Retinco device(s)";
+          _status = "Found ${_foundDevices.length} Ebladder device(s)";
         }
       });
     } catch (e) {
