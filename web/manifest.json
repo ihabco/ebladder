@@ -1,6 +1,6 @@
 {
-    "name": "blemanualconn",
-    "short_name": "blemanualconn",
+    "name": "ebladder",
+    "short_name": "ebladder",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

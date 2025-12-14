@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Retinco',
+      title: 'Ebladder',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -109,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 child: AnimatedTextKit(
                   totalRepeatCount: 1,
-                  animatedTexts: [TyperAnimatedText('Retinco ... Easy Life')],
+                  animatedTexts: [TyperAnimatedText('Ebladder ... Easy Life')],
                 ),
               ),
           ],

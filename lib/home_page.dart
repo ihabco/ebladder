@@ -843,7 +843,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rentico BLE Connect'),
+        title: const Text('Ebladder BLE Connect'),
         actions: [
           if (_isScanning)
             const Padding(

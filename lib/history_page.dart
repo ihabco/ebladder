@@ -51,7 +51,7 @@ Future<void> _searchRecords() async {
     // Get all records and filter manually
     final db = await DatabaseHelper.instance.database;
     final allRecords = await db.query(
-      'personal_data',
+      'personal_data_ebladder',
       orderBy: 'datetime DESC',
     );
 

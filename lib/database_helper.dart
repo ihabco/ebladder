@@ -11,7 +11,7 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('personal_data.db');
+    _database = await _initDB('personal_data_ebladder.db');
     return _database!;
   }
 
@@ -29,7 +29,7 @@ class DatabaseHelper {
 
   void _createDB(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE personal_data (
+      CREATE TABLE personal_data_ebladder (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         battery REAL,
         estimated_volml REAL,
@@ -105,7 +105,7 @@ class DatabaseHelper {
   Future<bool> doesDateTimeExist(String datetime) async {
     final db = await instance.database;
     final result = await db.query(
-      'personal_data',
+      'personal_data_ebladder',
       where: 'datetime = ?',
       whereArgs: [datetime],
     );
@@ -121,7 +121,7 @@ class DatabaseHelper {
     if (exists) {
       return 0;
     } else {
-      return await db.insert('personal_data', row);
+      return await db.insert('personal_data_ebladder', row);
     }
   }
 
@@ -132,7 +132,7 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.rawQuery(
       '''
-      SELECT * FROM personal_data 
+      SELECT * FROM personal_data_ebladder 
       WHERE datetime BETWEEN ? AND ?
       ORDER BY id DESC
     ''',
@@ -150,7 +150,7 @@ class DatabaseHelper {
     try {
       final results = await db.rawQuery(
         '''
-        SELECT * FROM personal_data 
+        SELECT * FROM personal_data_ebladder 
         WHERE datetime >= ? AND datetime <= ?
         ORDER BY 
           substr(datetime, 7, 4) || '-' ||  -- year
@@ -183,7 +183,7 @@ class DatabaseHelper {
   
       final results = await db.rawQuery(
         '''
-        SELECT * FROM personal_data 
+        SELECT * FROM personal_data_ebladder 
         WHERE datetime BETWEEN ? AND ?
         ORDER BY datetime DESC
         ''',
@@ -201,13 +201,13 @@ class DatabaseHelper {
   // Clear all data from table (keeps table structure)
   Future<int> clearAllData() async {
     final db = await instance.database;
-    return await db.delete('personal_data');
+    return await db.delete('personal_data_ebladder');
   }
 
   // Delete entire database file
   Future<void> deleteDatabase() async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'personal_data.db');
+    final path = join(dbPath, 'personal_data_ebladder.db');
 
     // Close existing connection
     if (_database != null) {
